@@ -22,9 +22,11 @@ import {
   getUserById,
   GetUserByIdResponse,
 } from "../../api";
+import { MemeHeader } from "../../components/meme-header";
+import { MemeContent } from "../../components/meme-content";
+import { MemeCommentSection } from "../../components/meme-comment-section";
 import { useAuthToken } from "../../contexts/authentication";
 import { Loader } from "../../components/loader";
-import { MemePicture } from "../../components/meme-picture";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { jwtDecode } from "jwt-decode";
 
@@ -166,120 +168,44 @@ export const MemeFeedPage: React.FC = () => {
       >
         {memes?.map((meme) => (
           <VStack key={meme.id} p={4} width="full" align="stretch">
-            <Flex justifyContent="space-between" alignItems="center">
-              <Flex>
-                <Avatar
-                  borderWidth="1px"
-                  borderColor="gray.300"
-                  size="xs"
-                  name={meme.author.username}
-                  src={meme.author.pictureUrl}
-                />
-                <Text ml={2} data-testid={`meme-author-${meme.id}`}>
-                  {meme.author.username}
-                </Text>
-              </Flex>
-              <Text fontStyle="italic" color="gray.500" fontSize="small">
-                {format(meme.createdAt)}
-              </Text>
-            </Flex>
-            <MemePicture
+            <MemeHeader author={meme.author} createdAt={meme.createdAt} />
+            <MemeContent
               pictureUrl={meme.pictureUrl}
               texts={meme.texts}
-              dataTestId={`meme-picture-${meme.id}`}
+              description={meme.description}
+              memeId={meme.id}
             />
-            <Box>
-              <Text fontWeight="bold" fontSize="medium" mb={2}>
-                Description:
-              </Text>
-              <Box
-                p={2}
-                borderRadius={8}
-                border="1px solid"
-                borderColor="gray.100"
-              >
-                <Text
-                  color="gray.500"
-                  whiteSpace="pre-line"
-                  data-testid={`meme-description-${meme.id}`}
-                >
-                  {meme.description}
-                </Text>
-              </Box>
-            </Box>
             <Flex
               alignItems="center"
               onClick={() => handleCommentSectionToggle(meme.id)}
             >
-              <Text data-testid={`meme-comments-count-${meme.id}`}>
-                {meme.commentsCount} comments
-              </Text>
+              <Text>{meme.commentsCount} comments</Text>
               <Icon
                 as={openedCommentSection === meme.id ? CaretUp : CaretDown}
                 ml={2}
                 mt={1}
               />
             </Flex>
-            <Collapse in={openedCommentSection === meme.id} animateOpacity>
-              <Box mb={6}>
-                <form
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    if (commentContent[meme.id]) {
-                      // to Modify
-                      // mutate({
-                      //   memeId: meme.id,
-                      //   content: commentContent[meme.id],
-                      // });
-                    }
-                  }}
-                >
-                  <Flex alignItems="center">
-                    <Avatar
-                      borderWidth="1px"
-                      borderColor="gray.300"
-                      name={user?.username}
-                      src={user?.pictureUrl}
-                      size="sm"
-                      mr={2}
-                    />
-                    <Input
-                      placeholder="Type your comment here..."
-                      onChange={(event) => {
-                        setCommentContent({
-                          ...commentContent,
-                          [meme.id]: event.target.value,
-                        });
-                      }}
-                      value={commentContent[meme.id]}
-                    />
-                  </Flex>
-                </form>
-              </Box>
-              <VStack align="stretch" spacing={4}>
-                {(memeComments[meme.id]?.comments || []).map((comment) => (
-                  <Flex key={comment.id} align="center">
-                    <Avatar
-                      size="xs"
-                      name={comment.author.username}
-                      src={comment.author.pictureUrl}
-                      mr={2}
-                    />
-                    <Text fontWeight="bold">{comment.author.username}</Text>
-                    <Text ml={2}>{comment.content}</Text>
-                  </Flex>
-                ))}
-                <Flex justify="center">
-                  <Text
-                    as="button"
-                    color="blue.500"
-                    onClick={() => loadMoreComments(meme.id)}
-                  >
-                    Charger plus de commentaires
-                  </Text>
-                </Flex>
-              </VStack>
-            </Collapse>
+            <MemeCommentSection
+              memeId={meme.id}
+              comments={memeComments[meme.id]?.comments || []}
+              commentContent={commentContent[meme.id] || ""}
+              handleCommentChange={(memeId, content) =>
+                setCommentContent((prev) => ({ ...prev, [memeId]: content }))
+              }
+              handleSubmit={(e, memeId) => {
+                e.preventDefault();
+                if (commentContent[memeId]) {
+                  // to Modify
+                  // mutate({
+                  //   memeId: meme.id,
+                  //   content: commentContent[meme.id],
+                  // });
+                }
+              }}
+              loadMoreComments={() => loadMoreComments(meme.id)}
+              isOpen={openedCommentSection === meme.id}
+            />
           </VStack>
         ))}
       </VStack>
