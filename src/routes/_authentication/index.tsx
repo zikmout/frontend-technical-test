@@ -1,26 +1,13 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+// import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { Flex, Icon, StackDivider, Text, VStack } from "@chakra-ui/react";
+import { CaretDown, CaretUp } from "@phosphor-icons/react";
 import {
-  Avatar,
-  Box,
-  Collapse,
-  Flex,
-  Icon,
-  StackDivider,
-  Text,
-  Input,
-  VStack,
-} from "@chakra-ui/react";
-import { CaretDown, CaretUp, Chat } from "@phosphor-icons/react";
-import { format } from "timeago.js";
-import {
-  createMemeComment,
   getMemeComments,
   GetMemeCommentsResponse,
   getMemes,
   GetMemesResponse,
   getUserById,
-  GetUserByIdResponse,
 } from "../../api";
 import { MemeHeader } from "../../components/meme-header";
 import { MemeContent } from "../../components/meme-content";
@@ -28,13 +15,13 @@ import { MemeCommentSection } from "../../components/meme-comment-section";
 import { useAuthToken } from "../../contexts/authentication";
 import { Loader } from "../../components/loader";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { jwtDecode } from "jwt-decode";
+import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
+// import { jwtDecode } from "jwt-decode";
 
 export const MemeFeedPage: React.FC = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
-  const [scrollPosition, setScrollPosition] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [page, setPage] = useState(1);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [page, setPage] = useState<number>(1);
   const [memes, setMemes] = useState<GetMemesResponse["results"]>([]);
   const [memeComments, setMemeComments] = useState<{
     [key: string]: {
@@ -42,6 +29,7 @@ export const MemeFeedPage: React.FC = () => {
       currentPage: number;
     };
   }>({});
+
   const [openedCommentSection, setOpenedCommentSection] = useState<
     string | null
   >(null);
@@ -50,37 +38,13 @@ export const MemeFeedPage: React.FC = () => {
   }>({});
   const token = useAuthToken();
 
-  useEffect(() => {
-    const intervalId = setInterval(() => {
-      if (scrollContainerRef.current) {
-        clearInterval(intervalId);
+  const loadNextPage = () => setPage((prevPage) => prevPage + 1);
 
-        const handleScroll = () => {
-          if (scrollContainerRef.current) {
-            const scrollTop = scrollContainerRef.current.scrollTop;
-            const scrollHeight = scrollContainerRef.current.scrollHeight;
-            const clientHeight = scrollContainerRef.current.clientHeight;
-            setScrollPosition(scrollContainerRef.current.scrollTop);
-
-            if (scrollTop + clientHeight >= scrollHeight - 10) {
-              setPage((prevPage) => prevPage + 1);
-            }
-          }
-        };
-
-        scrollContainerRef.current.addEventListener("scroll", handleScroll);
-
-        return () => {
-          scrollContainerRef.current?.removeEventListener(
-            "scroll",
-            handleScroll
-          );
-        };
-      }
-    }, 100);
-
-    return () => clearInterval(intervalId);
-  }, []);
+  useInfiniteScroll({
+    containerRef: scrollContainerRef,
+    onScrollEnd: loadNextPage,
+    offset: 10,
+  });
 
   const fetchMemes = useCallback(async () => {
     setIsLoading(true);
@@ -127,12 +91,12 @@ export const MemeFeedPage: React.FC = () => {
     [token]
   );
 
-  const { data: user } = useQuery({
-    queryKey: ["user"],
-    queryFn: async () => {
-      return await getUserById(token, jwtDecode<{ id: string }>(token).id);
-    },
-  });
+  // const { data: user } = useQuery({
+  //   queryKey: ["user"],
+  //   queryFn: async () => {
+  //     return await getUserById(token, jwtDecode<{ id: string }>(token).id);
+  //   },
+  // });
 
   const handleCommentSectionToggle = (memeId: string) => {
     const isOpening = openedCommentSection !== memeId;
@@ -196,7 +160,7 @@ export const MemeFeedPage: React.FC = () => {
               handleSubmit={(e, memeId) => {
                 e.preventDefault();
                 if (commentContent[memeId]) {
-                  // to Modify
+                  // TODO : Fix in next part of the exercise
                   // mutate({
                   //   memeId: meme.id,
                   //   content: commentContent[meme.id],
