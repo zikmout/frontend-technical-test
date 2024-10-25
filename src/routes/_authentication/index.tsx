@@ -175,7 +175,11 @@ export const MemeFeedPage: React.FC = () => {
       >
         {memes?.map((meme) => (
           <VStack key={meme.id} p={4} width="full" align="stretch">
-            <MemeHeader author={meme.author} createdAt={meme.createdAt} />
+            <MemeHeader
+              author={meme.author}
+              createdAt={meme.createdAt}
+              memeId={meme.id}
+            />
             <MemeContent
               pictureUrl={meme.pictureUrl}
               texts={meme.texts}

@@ -1,14 +1,20 @@
 import { Flex, Avatar, Text } from "@chakra-ui/react";
 import { format } from "timeago.js";
 
+interface Author {
+  username: string;
+  pictureUrl: string;
+}
 interface MemeHeaderProps {
-  author: { username: string; pictureUrl: string };
+  author: Author;
   createdAt: string;
+  memeId: string;
 }
 
 export const MemeHeader: React.FC<MemeHeaderProps> = ({
   author,
   createdAt,
+  memeId,
 }) => {
   return (
     <Flex justifyContent="space-between" alignItems="center">
@@ -20,7 +26,9 @@ export const MemeHeader: React.FC<MemeHeaderProps> = ({
           name={author.username}
           src={author.pictureUrl}
         />
-        <Text ml={2}>{author.username}</Text>
+        <Text ml={2} data-testid={`meme-author-${memeId}`}>
+          {author.username}
+        </Text>
       </Flex>
       <Text fontStyle="italic" color="gray.500" fontSize="small">
         {format(createdAt)}
