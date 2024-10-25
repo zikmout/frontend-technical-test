@@ -3,7 +3,7 @@ import { Box, Text } from "@chakra-ui/react";
 
 interface MemeContentProps {
   pictureUrl: string;
-  texts: string[];
+  texts: { content: string; x: number; y: number }[];
   description: string;
   memeId: string;
 }

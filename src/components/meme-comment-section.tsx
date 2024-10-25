@@ -1,19 +1,15 @@
-import {
-  Box,
-  Flex,
-  VStack,
-  Avatar,
-  Text,
-  Input,
-  Collapse,
-} from "@chakra-ui/react";
+import { VStack, Collapse } from "@chakra-ui/react";
+import { MemeComment } from "./meme-comment";
+import { CommentForm } from "./comment-form";
+import { LoadMoreButton } from "./load-more-button";
 
 interface MemeCommentSectionProps {
   memeId: string;
   comments: {
     id: string;
-    author: { username: string; pictureUrl: string };
+    author?: { username: string; pictureUrl: string };
     content: string;
+    createdAt: string;
   }[];
   commentContent: string;
   handleCommentChange: (memeId: string, content: string) => void;
@@ -33,45 +29,24 @@ export const MemeCommentSection: React.FC<MemeCommentSectionProps> = ({
 }) => {
   return (
     <Collapse in={isOpen} animateOpacity>
-      <Box mb={6}>
-        <form onSubmit={(event) => handleSubmit(event, memeId)}>
-          <Flex alignItems="center">
-            <Avatar
-              borderWidth="1px"
-              borderColor="gray.300"
-              name="username"
-              src="pictureUrl"
-              size="sm"
-              mr={2}
-            />
-            <Input
-              placeholder="Type your comment here..."
-              onChange={(event) =>
-                handleCommentChange(memeId, event.target.value)
-              }
-              value={commentContent}
-            />
-          </Flex>
-        </form>
-      </Box>
+      <CommentForm
+        memeId={memeId}
+        commentContent={commentContent}
+        handleSubmit={handleSubmit}
+        handleCommentChange={handleCommentChange}
+      />
+
       <VStack align="stretch" spacing={4}>
-        {comments.map((comment) => (
-          <Flex key={comment.id} align="center">
-            <Avatar
-              size="xs"
-              name={comment.author.username}
-              src={comment.author.pictureUrl}
-              mr={2}
-            />
-            <Text fontWeight="bold">{comment.author.username}</Text>
-            <Text ml={2}>{comment.content}</Text>
-          </Flex>
+        {comments.map(({ id, author, content, createdAt }) => (
+          <MemeComment
+            key={id}
+            author={author}
+            content={content}
+            createdAt={createdAt}
+          />
         ))}
-        <Flex justify="center">
-          <Text as="button" color="blue.500" onClick={loadMoreComments}>
-            Charger plus de commentaires
-          </Text>
-        </Flex>
+
+        <LoadMoreButton loadMore={loadMoreComments} />
       </VStack>
     </Collapse>
   );

@@ -1,4 +1,4 @@
-// import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Flex, Icon, StackDivider, Text, VStack } from "@chakra-ui/react";
 import { CaretDown, CaretUp } from "@phosphor-icons/react";
@@ -8,6 +8,7 @@ import {
   getMemes,
   GetMemesResponse,
   getUserById,
+  createMemeComment,
 } from "../../api";
 import { MemeHeader } from "../../components/meme-header";
 import { MemeContent } from "../../components/meme-content";
@@ -16,7 +17,6 @@ import { useAuthToken } from "../../contexts/authentication";
 import { Loader } from "../../components/loader";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
-// import { jwtDecode } from "jwt-decode";
 
 export const MemeFeedPage: React.FC = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -37,6 +37,13 @@ export const MemeFeedPage: React.FC = () => {
     [key: string]: string;
   }>({});
   const token = useAuthToken();
+  // TODO: Use this below instead of getUserById multiple times
+  // const { data: user } = useQuery({
+  //   queryKey: ["user"],
+  //   queryFn: async () => {
+  //     return await getUserById(token, jwtDecode<{ id: string }>(token).id);
+  //   },
+  // });
 
   const loadNextPage = () => setPage((prevPage) => prevPage + 1);
 
@@ -80,23 +87,59 @@ export const MemeFeedPage: React.FC = () => {
         })
       );
 
-      setMemeComments((prev) => ({
-        ...prev,
-        [memeId]: {
-          comments: [...(prev[memeId]?.comments || []), ...commentsWithAuthors],
-          currentPage: page,
-        },
-      }));
+      setMemeComments((prev) => {
+        const existingComments = prev[memeId]?.comments || [];
+        // TODO: Think about how to handle duplicates differently
+        // Not optimal to filter out duplicates like this
+        // But allow us to avoid duplicate key errors
+        const filteredComments = commentsWithAuthors.filter(
+          (newComment) =>
+            !existingComments.some((comment) => comment.id === newComment.id)
+        );
+
+        return {
+          ...prev,
+          [memeId]: {
+            comments: [...existingComments, ...filteredComments],
+            currentPage: page,
+          },
+        };
+      });
     },
     [token]
   );
 
-  // const { data: user } = useQuery({
-  //   queryKey: ["user"],
-  //   queryFn: async () => {
-  //     return await getUserById(token, jwtDecode<{ id: string }>(token).id);
-  //   },
-  // });
+  const { mutate: postComment } = useMutation({
+    mutationFn: async (data: { memeId: string; content: string }) => {
+      return await createMemeComment(token, data.memeId, data.content);
+    },
+    onSuccess: async (newComment, { memeId }) => {
+      const author = await getUserById(token, newComment.authorId);
+      const newCommentWithAuthor = { ...newComment, author };
+
+      setMemeComments((prev) => ({
+        ...prev,
+        [memeId]: {
+          ...prev[memeId],
+          comments: [newCommentWithAuthor, ...(prev[memeId]?.comments || [])],
+          currentPage: prev[memeId]?.currentPage || 1,
+        },
+      }));
+
+      setCommentContent((prev) => ({ ...prev, [memeId]: "" }));
+    },
+    onError: (error) => {
+      console.error("Error posting comment:", error);
+    },
+  });
+
+  const handleSubmitComment = (e: React.FormEvent, memeId: string) => {
+    e.preventDefault();
+    const content = commentContent[memeId];
+    if (content) {
+      postComment({ memeId, content });
+    }
+  };
 
   const handleCommentSectionToggle = (memeId: string) => {
     const isOpening = openedCommentSection !== memeId;
@@ -157,16 +200,7 @@ export const MemeFeedPage: React.FC = () => {
               handleCommentChange={(memeId, content) =>
                 setCommentContent((prev) => ({ ...prev, [memeId]: content }))
               }
-              handleSubmit={(e, memeId) => {
-                e.preventDefault();
-                if (commentContent[memeId]) {
-                  // TODO : Fix in next part of the exercise
-                  // mutate({
-                  //   memeId: meme.id,
-                  //   content: commentContent[meme.id],
-                  // });
-                }
-              }}
+              handleSubmit={(e) => handleSubmitComment(e, meme.id)}
               loadMoreComments={() => loadMoreComments(meme.id)}
               isOpen={openedCommentSection === meme.id}
             />
