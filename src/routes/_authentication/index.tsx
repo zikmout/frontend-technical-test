@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import {
   Avatar,
@@ -29,14 +29,16 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { jwtDecode } from "jwt-decode";
 
 export const MemeFeedPage: React.FC = () => {
-  const queryClient = useQueryClient();
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [scrollPosition, setScrollPosition] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [memes, setMemes] = useState<GetMemesResponse["results"]>([]);
   const [memeComments, setMemeComments] = useState<{
-    [key: string]: GetMemeCommentsResponse["results"];
+    [key: string]: {
+      comments: GetMemeCommentsResponse["results"];
+      currentPage: number;
+    };
   }>({});
   const [openedCommentSection, setOpenedCommentSection] = useState<
     string | null
@@ -80,7 +82,6 @@ export const MemeFeedPage: React.FC = () => {
 
   const fetchMemes = useCallback(async () => {
     setIsLoading(true);
-
     const newMemesPage = await getMemes(token, page);
     const newMemesWithAuthors = await Promise.all(
       newMemesPage.results.map(async (meme) => {
@@ -104,24 +105,24 @@ export const MemeFeedPage: React.FC = () => {
   }, [fetchMemes]);
 
   const fetchComments = useCallback(
-    async (memeId: string) => {
-      if (!memeComments[memeId]) {
-        const commentsResponse = await getMemeComments(token, memeId, 1);
+    async (memeId: string, page: number = 1) => {
+      const commentsResponse = await getMemeComments(token, memeId, page);
+      const commentsWithAuthors = await Promise.all(
+        commentsResponse.results.map(async (comment) => {
+          const author = await getUserById(token, comment.authorId);
+          return { ...comment, author };
+        })
+      );
 
-        const commentsWithAuthors = await Promise.all(
-          commentsResponse.results.map(async (comment) => {
-            const author = await getUserById(token, comment.authorId);
-            return { ...comment, author };
-          })
-        );
-
-        setMemeComments((prev) => ({
-          ...prev,
-          [memeId]: commentsWithAuthors,
-        }));
-      }
+      setMemeComments((prev) => ({
+        ...prev,
+        [memeId]: {
+          comments: [...(prev[memeId]?.comments || []), ...commentsWithAuthors],
+          currentPage: page,
+        },
+      }));
     },
-    [memeComments, token]
+    [token]
   );
 
   const { data: user } = useQuery({
@@ -136,13 +137,19 @@ export const MemeFeedPage: React.FC = () => {
     setOpenedCommentSection(isOpening ? memeId : null);
 
     if (isOpening && !memeComments[memeId]) {
-      fetchComments(memeId);
+      fetchComments(memeId, 1);
     }
+  };
+
+  const loadMoreComments = (memeId: string) => {
+    const currentPage = memeComments[memeId]?.currentPage || 1;
+    fetchComments(memeId, currentPage + 1);
   };
 
   if (memes.length === 0 && isLoading) {
     return <Loader data-testid="meme-feed-loader" />;
   }
+
   return (
     <Flex
       ref={scrollContainerRef}
@@ -157,115 +164,124 @@ export const MemeFeedPage: React.FC = () => {
         maxWidth={800}
         divider={<StackDivider border="gray.200" />}
       >
-        {memes?.map((meme) => {
-          return (
-            <VStack key={meme.id} p={4} width="full" align="stretch">
-              <Flex justifyContent="space-between" alignItems="center">
-                <Flex>
-                  <Avatar
-                    borderWidth="1px"
-                    borderColor="gray.300"
-                    size="xs"
-                    name={meme.author.username}
-                    src={meme.author.pictureUrl}
-                  />
-                  <Text ml={2} data-testid={`meme-author-${meme.id}`}>
-                    {meme.author.username}
+        {memes?.map((meme) => (
+          <VStack key={meme.id} p={4} width="full" align="stretch">
+            <Flex justifyContent="space-between" alignItems="center">
+              <Flex>
+                <Avatar
+                  borderWidth="1px"
+                  borderColor="gray.300"
+                  size="xs"
+                  name={meme.author.username}
+                  src={meme.author.pictureUrl}
+                />
+                <Text ml={2} data-testid={`meme-author-${meme.id}`}>
+                  {meme.author.username}
+                </Text>
+              </Flex>
+              <Text fontStyle="italic" color="gray.500" fontSize="small">
+                {format(meme.createdAt)}
+              </Text>
+            </Flex>
+            <MemePicture
+              pictureUrl={meme.pictureUrl}
+              texts={meme.texts}
+              dataTestId={`meme-picture-${meme.id}`}
+            />
+            <Box>
+              <Text fontWeight="bold" fontSize="medium" mb={2}>
+                Description:
+              </Text>
+              <Box
+                p={2}
+                borderRadius={8}
+                border="1px solid"
+                borderColor="gray.100"
+              >
+                <Text
+                  color="gray.500"
+                  whiteSpace="pre-line"
+                  data-testid={`meme-description-${meme.id}`}
+                >
+                  {meme.description}
+                </Text>
+              </Box>
+            </Box>
+            <Flex
+              alignItems="center"
+              onClick={() => handleCommentSectionToggle(meme.id)}
+            >
+              <Text data-testid={`meme-comments-count-${meme.id}`}>
+                {meme.commentsCount} comments
+              </Text>
+              <Icon
+                as={openedCommentSection === meme.id ? CaretUp : CaretDown}
+                ml={2}
+                mt={1}
+              />
+            </Flex>
+            <Collapse in={openedCommentSection === meme.id} animateOpacity>
+              <Box mb={6}>
+                <form
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    if (commentContent[meme.id]) {
+                      // to Modify
+                      // mutate({
+                      //   memeId: meme.id,
+                      //   content: commentContent[meme.id],
+                      // });
+                    }
+                  }}
+                >
+                  <Flex alignItems="center">
+                    <Avatar
+                      borderWidth="1px"
+                      borderColor="gray.300"
+                      name={user?.username}
+                      src={user?.pictureUrl}
+                      size="sm"
+                      mr={2}
+                    />
+                    <Input
+                      placeholder="Type your comment here..."
+                      onChange={(event) => {
+                        setCommentContent({
+                          ...commentContent,
+                          [meme.id]: event.target.value,
+                        });
+                      }}
+                      value={commentContent[meme.id]}
+                    />
+                  </Flex>
+                </form>
+              </Box>
+              <VStack align="stretch" spacing={4}>
+                {(memeComments[meme.id]?.comments || []).map((comment) => (
+                  <Flex key={comment.id} align="center">
+                    <Avatar
+                      size="xs"
+                      name={comment.author.username}
+                      src={comment.author.pictureUrl}
+                      mr={2}
+                    />
+                    <Text fontWeight="bold">{comment.author.username}</Text>
+                    <Text ml={2}>{comment.content}</Text>
+                  </Flex>
+                ))}
+                <Flex justify="center">
+                  <Text
+                    as="button"
+                    color="blue.500"
+                    onClick={() => loadMoreComments(meme.id)}
+                  >
+                    Charger plus de commentaires
                   </Text>
                 </Flex>
-                <Text fontStyle="italic" color="gray.500" fontSize="small">
-                  {format(meme.createdAt)}
-                </Text>
-              </Flex>
-              <MemePicture
-                pictureUrl={meme.pictureUrl}
-                texts={meme.texts}
-                dataTestId={`meme-picture-${meme.id}`}
-              />
-              <Box>
-                <Text fontWeight="bold" fontSize="medium" mb={2}>
-                  Description:
-                </Text>
-                <Box
-                  p={2}
-                  borderRadius={8}
-                  border="1px solid"
-                  borderColor="gray.100"
-                >
-                  <Text
-                    color="gray.500"
-                    whiteSpace="pre-line"
-                    data-testid={`meme-description-${meme.id}`}
-                  >
-                    {meme.description}
-                  </Text>
-                </Box>
-              </Box>
-              <Flex
-                // justifyContent="space-between"
-                alignItems="center"
-                onClick={() => handleCommentSectionToggle(meme.id)}
-              >
-                <Text data-testid={`meme-comments-count-${meme.id}`}>
-                  {meme.commentsCount} comments
-                </Text>
-
-                <Icon
-                  as={openedCommentSection === meme.id ? CaretUp : CaretDown}
-                  ml={2}
-                  mt={1}
-                />
-              </Flex>
-              <Collapse in={openedCommentSection === meme.id} animateOpacity>
-                <Box mb={6}>
-                  <form
-                    onSubmit={(event) => {
-                      event.preventDefault();
-                      if (commentContent[meme.id]) {
-                        // Replace `mutate` with the appropriate function to handle comment creation
-                      }
-                    }}
-                  >
-                    <Flex alignItems="center">
-                      <Avatar
-                        borderWidth="1px"
-                        borderColor="gray.300"
-                        name={user?.username}
-                        src={user?.pictureUrl}
-                        size="sm"
-                        mr={2}
-                      />
-                      <Input
-                        placeholder="Type your comment here..."
-                        onChange={(event) => {
-                          setCommentContent({
-                            ...commentContent,
-                            [meme.id]: event.target.value,
-                          });
-                        }}
-                        value={commentContent[meme.id]}
-                      />
-                    </Flex>
-                  </form>
-                </Box>
-                <VStack align="stretch" spacing={4}>
-                  {(memeComments[meme.id] || []).map((comment) => (
-                    <Flex key={comment.id} align="center">
-                      <Avatar
-                        size="xs"
-                        name={comment.author.username}
-                        src={comment.author.pictureUrl}
-                        mr={2}
-                      />
-                      <Text fontWeight="bold">{comment.author.username}</Text>
-                      <Text ml={2}>{comment.content}</Text>
-                    </Flex>
-                  ))}
-                </VStack>
-              </Collapse>
-            </VStack>
-          );
-        })}
+              </VStack>
+            </Collapse>
+          </VStack>
+        ))}
       </VStack>
     </Flex>
   );
