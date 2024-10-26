@@ -4,6 +4,7 @@ import { CommentForm } from "./comment-form";
 import { LoadMoreButton } from "./load-more-button";
 
 interface MemeCommentSectionProps {
+  user: { username: string; pictureUrl: string } | null;
   memeId: string;
   comments: {
     id: string;
@@ -19,6 +20,7 @@ interface MemeCommentSectionProps {
 }
 
 export const MemeCommentSection: React.FC<MemeCommentSectionProps> = ({
+  user,
   memeId,
   comments,
   commentContent,
@@ -30,6 +32,7 @@ export const MemeCommentSection: React.FC<MemeCommentSectionProps> = ({
   return (
     <Collapse in={isOpen} animateOpacity>
       <CommentForm
+        user={user}
         memeId={memeId}
         commentContent={commentContent}
         handleSubmit={handleSubmit}
@@ -43,9 +46,10 @@ export const MemeCommentSection: React.FC<MemeCommentSectionProps> = ({
             author={author}
             content={content}
             createdAt={createdAt}
+            memeId={memeId}
+            commentId={id}
           />
         ))}
-
         <LoadMoreButton loadMore={loadMoreComments} />
       </VStack>
     </Collapse>

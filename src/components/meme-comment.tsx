@@ -7,13 +7,17 @@ dayjs.extend(relativeTime);
 interface MemeCommentProps {
   author: { username: string; pictureUrl: string };
   content: string;
-  createdAt: string; // Eventually type format differently
+  createdAt: string; // Eventually type format differently,
+  memeId: string;
+  commentId: string;
 }
 
 export const MemeComment: React.FC<MemeCommentProps> = ({
   author,
   content,
   createdAt,
+  memeId,
+  commentId,
 }) => {
   return (
     <Flex align="flex-start">
@@ -34,13 +38,22 @@ export const MemeComment: React.FC<MemeCommentProps> = ({
         border="1px solid"
         borderColor="white"
       >
-        <Flex justify="space-between" align="center">
+        <Flex
+          justify="space-between"
+          align="center"
+          data-testid={`meme-comment-author-${memeId}-${commentId}`}
+        >
           <Text>{author.username}</Text>
           <Text fontStyle="italic" color="gray.500" fontSize="small">
             {dayjs(createdAt).fromNow()}
           </Text>
         </Flex>
-        <Text color="gray.500">{content}</Text>
+        <Text
+          color="gray.500"
+          data-testid={`meme-comment-content-${memeId}-${commentId}`}
+        >
+          {content}
+        </Text>
       </Box>
     </Flex>
   );

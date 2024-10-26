@@ -26,7 +26,11 @@ export const MemeContent: React.FC<MemeContentProps> = ({
           Description:
         </Text>
         <Box p={2} borderRadius={8} border="1px solid" borderColor="gray.100">
-          <Text color="gray.500" whiteSpace="pre-line">
+          <Text
+            color="gray.500"
+            whiteSpace="pre-line"
+            data-testid={`meme-description-${memeId}`}
+          >
             {description}
           </Text>
         </Box>

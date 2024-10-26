@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Flex, Icon, StackDivider, Text, VStack } from "@chakra-ui/react";
 import { CaretDown, CaretUp } from "@phosphor-icons/react";
@@ -17,6 +17,7 @@ import { useAuthToken } from "../../contexts/authentication";
 import { Loader } from "../../components/loader";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useInfiniteScroll } from "../../hooks/useInfiniteScroll";
+import { jwtDecode } from "jwt-decode";
 
 export const MemeFeedPage: React.FC = () => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -38,12 +39,12 @@ export const MemeFeedPage: React.FC = () => {
   }>({});
   const token = useAuthToken();
   // TODO: Use this below instead of getUserById multiple times
-  // const { data: user } = useQuery({
-  //   queryKey: ["user"],
-  //   queryFn: async () => {
-  //     return await getUserById(token, jwtDecode<{ id: string }>(token).id);
-  //   },
-  // });
+  const { data: user } = useQuery({
+    queryKey: ["user"],
+    queryFn: async () => {
+      return await getUserById(token, jwtDecode<{ id: string }>(token).id);
+    },
+  });
 
   const loadNextPage = () => setPage((prevPage) => prevPage + 1);
 
@@ -189,8 +190,11 @@ export const MemeFeedPage: React.FC = () => {
             <Flex
               alignItems="center"
               onClick={() => handleCommentSectionToggle(meme.id)}
+              data-testid={`meme-comments-section-${meme.id}`}
             >
-              <Text>{meme.commentsCount} comments</Text>
+              <Text data-testid={`meme-comments-count-${meme.id}`}>
+                {meme.commentsCount} comments
+              </Text>
               <Icon
                 as={openedCommentSection === meme.id ? CaretUp : CaretDown}
                 ml={2}
@@ -198,6 +202,7 @@ export const MemeFeedPage: React.FC = () => {
               />
             </Flex>
             <MemeCommentSection
+              user={user}
               memeId={meme.id}
               comments={memeComments[meme.id]?.comments || []}
               commentContent={commentContent[meme.id] || ""}

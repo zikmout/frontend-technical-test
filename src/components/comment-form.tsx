@@ -1,6 +1,7 @@
 import { Avatar, Flex, Input, Box } from "@chakra-ui/react";
 
 interface CommentFormProps {
+  user: { username: string; pictureUrl: string } | null;
   memeId: string;
   commentContent: string;
   handleSubmit: (event: React.FormEvent, memeId: string) => void;
@@ -8,6 +9,7 @@ interface CommentFormProps {
 }
 
 export const CommentForm: React.FC<CommentFormProps> = ({
+  user,
   memeId,
   commentContent,
   handleSubmit,
@@ -20,8 +22,8 @@ export const CommentForm: React.FC<CommentFormProps> = ({
           <Avatar
             borderWidth="1px"
             borderColor="gray.300"
-            name="username"
-            src="pictureUrl"
+            name={user?.username}
+            src={user?.pictureUrl}
             size="sm"
             mr={2}
           />
