@@ -10,6 +10,8 @@ import {
 } from "react";
 import axios from "axios";
 
+
+
 export type AuthenticationState =
   | {
       isAuthenticated: true;
@@ -36,6 +38,24 @@ export const AuthenticationProvider: React.FC<PropsWithChildren> = ({
   const [state, setState] = useState<AuthenticationState>(() => {
     // Use local storage to persist the authentication state
     const savedToken = localStorage.getItem("authToken");
+
+    if (!savedToken) {
+      return { isAuthenticated: false };
+    }
+    const decodedToken = jwtDecode<{ id: string; exp: number }>(savedToken);
+
+    const currentTime = Math.floor(Date.now() / 1000);
+
+    // Vérifie si le token a expiré
+    if (decodedToken.exp < currentTime) {
+      localStorage.removeItem("authToken");
+      return {
+        isAuthenticated: false,
+        token: savedToken,
+        userId: decodedToken.id,
+      };
+    }
+
     if (savedToken) {
       const userId = jwtDecode<{ id: string }>(savedToken).id;
       return {

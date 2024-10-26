@@ -38,7 +38,7 @@ export const MemeFeedPage: React.FC = () => {
     [key: string]: string;
   }>({});
   const token = useAuthToken();
-  // TODO: Use this below instead of getUserById multiple times
+
   const { data: user } = useQuery({
     queryKey: ["user"],
     queryFn: async () => {
@@ -177,7 +177,7 @@ export const MemeFeedPage: React.FC = () => {
         {memes?.map((meme) => (
           <VStack key={meme.id} p={4} width="full" align="stretch">
             <MemeHeader
-              author={meme.author}
+              author={meme.author} // TODO: Fix Typescript error
               createdAt={meme.createdAt}
               memeId={meme.id}
             />
@@ -202,7 +202,7 @@ export const MemeFeedPage: React.FC = () => {
               />
             </Flex>
             <MemeCommentSection
-              user={user}
+              user={user!}
               memeId={meme.id}
               comments={memeComments[meme.id]?.comments || []}
               commentContent={commentContent[meme.id] || ""}
